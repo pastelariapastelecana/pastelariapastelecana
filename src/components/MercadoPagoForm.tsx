@@ -1,10 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { initMercadoPago, CardPaymentBrick } from '@mercadopago/sdk-js';
+// Importamos o SDK, mas as funções são acessadas via window.MercadoPago
+import '@mercadopago/sdk-js'; 
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Adicionar tipo para a propriedade global MercadoPago
+declare global {
+  interface Window {
+    MercadoPago: any;
+  }
+}
 
 // O Mercado Pago SDK requer a chave pública (public key)
 const MERCADOPAGO_PUBLIC_KEY = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
@@ -39,17 +47,27 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
       return;
     }
 
-    try {
-      initMercadoPago(MERCADOPAGO_PUBLIC_KEY, { locale: 'pt-BR' });
-      setSdkReady(true);
-    } catch (error) {
-      console.error('Erro ao inicializar Mercado Pago SDK:', error);
-      toast.error('Falha ao carregar o sistema de pagamento.');
+    // Verifica se o SDK já está carregado (via import '@mercadopago/sdk-js')
+    if (window.MercadoPago && window.MercadoPago.bricks) {
+        try {
+            window.MercadoPago.init(MERCADOPAGO_PUBLIC_KEY, { locale: 'pt-BR' });
+            setSdkReady(true);
+        } catch (error) {
+            console.error('Erro ao inicializar Mercado Pago SDK:', error);
+            toast.error('Falha ao carregar o sistema de pagamento.');
+        }
+    } else {
+        // Se não estiver carregado, pode haver um problema com o import ou o ambiente.
+        console.error('MercadoPago global object not found after import.');
+        toast.error('Falha crítica ao carregar o SDK do Mercado Pago.');
     }
   }, []);
 
   const renderBrick = useCallback(async () => {
-    if (!sdkReady) return;
+    if (!sdkReady || !window.MercadoPago || !window.MercadoPago.bricks) return;
+
+    const bricks = window.MercadoPago.bricks();
+    const CardPaymentBrick = bricks.getBrick('cardPayment');
 
     const settings = {
       initialization: {
@@ -61,13 +79,13 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
       customization: {
         visual: {
           style: {
-            theme: 'bootstrap', // Estilo simples
+            theme: 'bootstrap',
           },
         },
         paymentMethods: {
           creditCard: 'all',
           debitCard: 'all',
-          maxInstallments: 1, // Limitar a 1 parcela para simplificar o fluxo de delivery
+          maxInstallments: 1,
         },
       },
       callbacks: {
@@ -76,7 +94,6 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
         },
         onSubmit: (cardFormData: any) => {
           setIsLoading(true);
-          // O Brick já tokenizou o cartão e forneceu os dados necessários
           return handleCardPayment(cardFormData);
         },
         onError: (error: any) => {
@@ -88,9 +105,8 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
     };
 
     try {
-      const bricks = (window as any).MercadoPago.bricks();
-      const cardPaymentBrick = new CardPaymentBrick(settings);
-      await cardPaymentBrick.render(brickContainerId);
+      // Se o Brick já existe, ele pode ser renderizado novamente
+      await CardPaymentBrick.render(brickContainerId, settings);
     } catch (error) {
       console.error('Erro ao renderizar o Brick:', error);
       onPaymentError('Erro ao carregar o formulário de cartão.');
@@ -126,7 +142,7 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
 
       const data = await response.json();
 
-      if (!response.ok || data.status !== 'approved') {
+      if (!response.ok || (data.status !== 'approved' && data.status !== 'in_process')) {
         const errorMsg = data.details || data.error || 'Pagamento recusado ou erro desconhecido.';
         onPaymentError(errorMsg);
         return;
@@ -153,7 +169,6 @@ const MercadoPagoForm: React.FC<MercadoPagoFormProps> = ({
   return (
     <div className="space-y-4">
       <div id={brickContainerId} />
-      {/* O botão de submissão é gerado pelo próprio Brick */}
       {isLoading && (
         <div className="flex items-center justify-center p-4">
           <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
