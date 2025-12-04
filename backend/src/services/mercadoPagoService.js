@@ -36,9 +36,13 @@ async function createPixPayment(amount, description, payerEmail, payerName, exte
             email: payerEmail,
             first_name: firstName,
             last_name: lastName,
-            // O Mercado Pago pode exigir um tipo de identificação para PIX, dependendo do país.
-            // Para o Brasil, geralmente é necessário CPF/CNPJ. Vamos assumir que não é estritamente obrigatório
-            // para a criação inicial, mas se o erro persistir, o CPF/CNPJ deve ser adicionado ao formulário.
+            // Adicionando identificação (CPF) - O Mercado Pago exige isso para PIX no Brasil.
+            // Como não temos o CPF no formulário, usaremos um placeholder de teste.
+            // Se estiver em produção, você precisará coletar o CPF do usuário.
+            identification: {
+                type: "CPF",
+                number: "99999999999" // CPF de teste/placeholder. Mude para um CPF real se estiver em produção.
+            }
         },
     };
 
