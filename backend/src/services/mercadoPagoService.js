@@ -1,96 +1,44 @@
 // backend/src/services/mercadoPagoService.js
-const { MercadoPagoConfig, Payment } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
-const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-if (!accessToken) {
-    console.error('ERRO CRÍTICO: MERCADOPAGO_ACCESS_TOKEN não está configurado no backend.');
-    throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined.');
-}
+const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
 
-const client = new MercadoPagoConfig({ accessToken });
+async function createPaymentPreference(items, payer) {
+    const preference = new Preference(client);
 
-/**
- * Cria um pagamento PIX usando a API do Mercado Pago.
- * @param {number} amount - Valor total da transação.
- * @param {string} description - Descrição do pagamento.
- * @param {string} payerEmail - E-mail do pagador.
- * @param {string} payerName - Nome completo do pagador.
- * @param {string} externalReference - Referência externa do pedido.
- * @returns {Promise<object>} Dados do pagamento PIX (QR Code, etc.).
- */
-async function createPixPayment(amount, description, payerEmail, payerName, externalReference) {
-    const payment = new Payment(client);
-
-    // O Mercado Pago exige first_name e last_name
-    const nameParts = payerName.split(' ');
-    const firstName = nameParts[0] || 'Cliente';
-    const lastName = nameParts.slice(1).join(' ') || 'Online';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001'; // Usar BACKEND_URL
 
     const body = {
-        transaction_amount: parseFloat(amount.toFixed(2)),
-        description: description,
-        payment_method_id: 'pix',
-        external_reference: externalReference,
-        notification_url: `${process.env.BACKEND_URL}/api/webhooks/mercadopago`,
+        items: items,
         payer: {
-            email: payerEmail,
-            first_name: firstName,
-            last_name: lastName,
-            // Adicionando identificação (CPF) - O Mercado Pago exige isso para PIX no Brasil.
-            // Como não temos o CPF no formulário, usaremos um placeholder de teste.
-            // Se estiver em produção, você precisará coletar o CPF do usuário.
-            identification: {
-                type: "CPF",
-                number: "99999999999" // CPF de teste/placeholder. Mude para um CPF real se estiver em produção.
-            }
+            name: payer.name,
+            email: payer.email,
         },
+        back_urls: {
+            success: `${frontendUrl}/checkout?status=approved`,
+            failure: `${frontendUrl}/checkout?status=rejected`,
+            pending: `${frontendUrl}/checkout?status=pending`
+        },
+        auto_return: "approved",
+        // Adiciona a URL de notificação para que o Mercado Pago envie o status do pagamento
+        notification_url: `${backendUrl}/api/webhooks/mercadopago`,
     };
 
-    try {
-        const result = await payment.create({ body });
-        return result;
-    } catch (error) {
-        console.error('Erro ao criar pagamento PIX no Mercado Pago:', error.response ? error.response.data : error.message);
-        throw error;
-    }
+    const result = await preference.create({ body });
+    return result;
 }
 
-/**
- * Cria um pagamento com cartão de crédito/débito usando a API do Mercado Pago.
- * @param {object} paymentData - Dados do pagamento (token, valor, parcelas, etc.).
- * @returns {Promise<object>} Dados do pagamento criado.
- */
-async function createCardPayment(paymentData) {
-    const payment = new Payment(client);
-
-    const body = {
-        ...paymentData,
-        notification_url: `${process.env.BACKEND_URL}/api/webhooks/mercadopago`,
-    };
-
-    try {
-        const result = await payment.create({ body });
-        return result;
-    } catch (error) {
-        console.error('Erro ao criar pagamento com Cartão no Mercado Pago:', error.response ? error.response.data : error.message);
-        throw error;
-    }
-}
-
-/**
- * Busca os detalhes de um pagamento.
- * @param {string} paymentId - ID do pagamento.
- * @returns {Promise<object | null>} Detalhes do pagamento.
- */
 async function getPaymentDetails(paymentId) {
     const payment = new Payment(client);
     try {
         const result = await payment.get({ id: paymentId });
         return result;
     } catch (error) {
+        // Se o pagamento não for encontrado (ex: erro 404), loga e retorna null
         console.warn(`[MercadoPagoService] Pagamento ${paymentId} não encontrado ou erro ao buscar detalhes:`, error.message);
         return null; 
     }
 }
 
-module.exports = { createPixPayment, createCardPayment, getPaymentDetails };
+module.exports = { createPaymentPreference, getPaymentDetails };
