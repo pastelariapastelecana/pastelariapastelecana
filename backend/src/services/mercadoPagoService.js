@@ -1,7 +1,13 @@
 // backend/src/services/mercadoPagoService.js
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 
-const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
+const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+if (!accessToken) {
+    console.error('ERRO CRÍTICO: MERCADOPAGO_ACCESS_TOKEN não está configurado no backend.');
+    throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined.');
+}
+
+const client = new MercadoPagoConfig({ accessToken });
 
 /**
  * Cria um pagamento PIX usando a API do Mercado Pago.
@@ -15,9 +21,10 @@ const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCE
 async function createPixPayment(amount, description, payerEmail, payerName, externalReference) {
     const payment = new Payment(client);
 
+    // O Mercado Pago exige first_name e last_name
     const nameParts = payerName.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
+    const firstName = nameParts[0] || 'Cliente';
+    const lastName = nameParts.slice(1).join(' ') || 'Online';
 
     const body = {
         transaction_amount: parseFloat(amount.toFixed(2)),
@@ -29,6 +36,9 @@ async function createPixPayment(amount, description, payerEmail, payerName, exte
             email: payerEmail,
             first_name: firstName,
             last_name: lastName,
+            // O Mercado Pago pode exigir um tipo de identificação para PIX, dependendo do país.
+            // Para o Brasil, geralmente é necessário CPF/CNPJ. Vamos assumir que não é estritamente obrigatório
+            // para a criação inicial, mas se o erro persistir, o CPF/CNPJ deve ser adicionado ao formulário.
         },
     };
 
@@ -43,8 +53,6 @@ async function createPixPayment(amount, description, payerEmail, payerName, exte
 
 /**
  * Cria um pagamento com cartão de crédito/débito usando a API do Mercado Pago.
- * NOTA: Esta função requer que o frontend envie o token do cartão (card_token_id)
- * e o ID do método de pagamento (payment_method_id).
  * @param {object} paymentData - Dados do pagamento (token, valor, parcelas, etc.).
  * @returns {Promise<object>} Dados do pagamento criado.
  */
