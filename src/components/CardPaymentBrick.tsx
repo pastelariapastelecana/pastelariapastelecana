@@ -44,11 +44,14 @@ const CardPaymentBrick: React.FC<CardPaymentBrickProps> = ({
     
     const externalReference = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
+    // Garantir que o email seja uma string não vazia para a inicialização
+    const email = payerEmail || 'test_user@example.com'; 
+    
     const settings = {
       initialization: {
         amount: parseFloat(totalAmount.toFixed(2)),
         payer: {
-            email: payerEmail,
+            email: email,
         },
       },
       customization: {
@@ -140,7 +143,8 @@ const CardPaymentBrick: React.FC<CardPaymentBrickProps> = ({
 
   useEffect(() => {
     // 2. Inicializar o MP e renderizar o Brick após o SDK carregar
-    if (!isSdkLoading && window.MercadoPago && totalAmount > 0) {
+    // Adicionamos a verificação de payerEmail e payerName aqui para evitar a inicialização com dados incompletos
+    if (!isSdkLoading && window.MercadoPago && totalAmount > 0 && payerEmail && payerName) {
         try {
             const mp = new window.MercadoPago(MERCADOPAGO_PUBLIC_KEY, {
                 locale: 'pt-BR',
@@ -151,7 +155,7 @@ const CardPaymentBrick: React.FC<CardPaymentBrickProps> = ({
             onPaymentError(error);
         }
     }
-  }, [isSdkLoading, totalAmount, renderBrick, onPaymentError]);
+  }, [isSdkLoading, totalAmount, renderBrick, onPaymentError, payerEmail, payerName]);
 
 
   if (!MERCADOPAGO_PUBLIC_KEY) {
@@ -164,6 +168,15 @@ const CardPaymentBrick: React.FC<CardPaymentBrickProps> = ({
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
         <p className="ml-3 text-muted-foreground">Carregando formulário de pagamento...</p>
       </div>
+    );
+  }
+  
+  // Se os dados do pagador estiverem faltando, mostramos uma mensagem em vez do Brick
+  if (!payerEmail || !payerName) {
+    return (
+        <div className="text-center p-6 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
+            <p className="font-medium">Por favor, preencha seu nome e e-mail acima para carregar o formulário de pagamento com cartão.</p>
+        </div>
     );
   }
 
