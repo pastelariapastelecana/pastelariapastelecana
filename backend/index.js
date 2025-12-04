@@ -5,8 +5,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const deliveryRoutes = require('./src/routes/deliveryRoutes');
+const paymentRoutes = require('./src/routes/paymentRoutes'); // Reintroduzido
 const orderRoutes = require('./src/routes/orderRoutes');
-const pixRoutes = require('./src/routes/pixRoutes'); // Adicionar rota PIX
+const webhookRoutes = require('./src/routes/webhookRoutes'); // Reintroduzido
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,9 +18,10 @@ app.use(bodyParser.json()); // Analisa corpos de requisição JSON
 
 // Rotas
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api', paymentRoutes); // Rotas de pagamento transparente
 app.use('/api', orderRoutes);
-app.use('/api/pix', pixRoutes); // Adicionar rota PIX
-console.log('Rotas de entrega, pedido e PIX carregadas em /api'); // Atualizado para depuração
+app.use('/api/webhooks', webhookRoutes); // Rotas de webhook
+console.log('Rotas de pagamento, pedido e webhooks carregadas em /api'); // Adicionado para depuração
 
 // Rota básica para testar se o servidor está funcionando
 app.get('/', (req, res) => {
