@@ -3,7 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { processPixPayment, processCardPayment } = require('../controllers/paymentController');
 
-router.post('/process-pix', processPixPayment);
-router.post('/process-card', processCardPayment);
+// Rota para iniciar o pagamento com cartão (Checkout Transparente)
+router.post('/process-card-payment', processCardPayment);
+
+// Rota para gerar o PIX (Checkout Transparente)
+router.post('/process-pix-payment', processPixPayment);
 
 module.exports = router;
