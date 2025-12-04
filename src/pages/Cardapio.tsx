@@ -5,7 +5,8 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { products, categories } from '@/data/products';
 import { useCart } from '@/contexts/CartContext';
-import { ShoppingCart, Check } from 'lucide-react';
+import { useStoreStatus } from '@/contexts/StoreStatusContext';
+import { ShoppingCart, Check, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Cardapio = () => {
@@ -13,6 +14,7 @@ const Cardapio = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
   const { addItem } = useCart();
+  const { isStoreOpen } = useStoreStatus(); // Get store status
 
   useEffect(() => {
     const categoria = searchParams.get('categoria');
@@ -26,6 +28,11 @@ const Cardapio = () => {
     : products.filter(p => p.category === selectedCategory);
 
   const handleAddToCart = (product: typeof products[0]) => {
+    if (!isStoreOpen) {
+      toast.error('A loja está fechada. Não é possível adicionar itens ao carrinho no momento.');
+      return;
+    }
+    
     addItem({
       id: product.id,
       name: product.name,
@@ -57,6 +64,14 @@ const Cardapio = () => {
         </div>
 
         <div className="container mx-auto px-4 py-12">
+          {!isStoreOpen && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8 rounded-lg flex items-center gap-3" role="alert">
+              <Circle className="w-5 h-5 fill-red-500 text-white" />
+              <p className="font-bold">Atenção: A loja está fechada.</p>
+              <p className="text-sm">Você pode navegar, mas não é possível adicionar itens ao carrinho ou finalizar pedidos.</p>
+            </div>
+          )}
+          
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar Filters */}
             <aside className="lg:w-64 flex-shrink-0">
@@ -130,6 +145,7 @@ const Cardapio = () => {
                           variant={addedProducts.has(product.id) ? "accent" : "default"}
                           size="sm"
                           className="transition-all"
+                          disabled={!isStoreOpen} // Disable if closed
                         >
                           {addedProducts.has(product.id) ? (
                             <>
@@ -139,7 +155,7 @@ const Cardapio = () => {
                           ) : (
                             <>
                               <ShoppingCart className="w-4 h-4 mr-2" />
-                              Adicionar
+                              {isStoreOpen ? 'Adicionar' : 'Fechado'}
                             </>
                           )}
                         </Button>

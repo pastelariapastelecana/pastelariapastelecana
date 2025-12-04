@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, Phone } from 'lucide-react';
+import { ShoppingCart, Menu, Phone, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useStoreStatus } from '@/contexts/StoreStatusContext';
 import { useState } from 'react';
 
 const Header = () => {
   const { totalItems } = useCart();
+  const { isStoreOpen, toggleStoreStatus } = useStoreStatus(); // Use store status
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -35,6 +37,20 @@ const Header = () => {
               </span>
             </div>
           </Link>
+
+          {/* Store Status Indicator */}
+          <div className="hidden sm:flex items-center gap-2 ml-4">
+            <Circle 
+              className={`w-3 h-3 ${isStoreOpen ? 'text-green-500 fill-green-500' : 'text-red-500 fill-red-500'}`} 
+            />
+            <span className={`text-sm font-medium ${isStoreOpen ? 'text-green-600' : 'text-red-600'}`}>
+              {isStoreOpen ? 'Aberto para Pedidos' : 'Fechado'}
+            </span>
+            {/* Temporary toggle for testing - remove in final production if not needed */}
+            {/* <Button variant="ghost" size="sm" onClick={toggleStoreStatus} className="text-xs p-1 h-auto">
+              (Toggle)
+            </Button> */}
+          </div>
 
 
           {/* Desktop Navigation */}

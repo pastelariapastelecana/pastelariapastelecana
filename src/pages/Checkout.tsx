@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
+import { useStoreStatus } from '@/contexts/StoreStatusContext'; // Importar useStoreStatus
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, CreditCard, Loader2, CheckCircle2, User, Mail } from 'lucide-react';
+import { MapPin, CreditCard, Loader2, CheckCircle2, User, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -17,6 +18,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
+  const { isStoreOpen, isLoading: isStatusLoading } = useStoreStatus(); // Usar status da loja
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -92,21 +94,28 @@ const Checkout = () => {
     const status = query.get('status');
     const paymentId = query.get('payment_id');
 
-    if (location.pathname === '/pagamento/sucesso' && status === 'approved' && paymentId) {
+    // Verifica se a loja está aberta antes de processar o pedido, embora o MP já tenha aprovado.
+    // Se a loja estiver fechada, o pedido ainda é processado se o pagamento foi aprovado, mas o ideal é evitar que chegue aqui.
+    if (status === 'approved' && paymentId) {
         if (paymentStatus !== 'success' && paymentStatus !== 'processing') {
             setPaymentStatus('processing');
             sendOrderToBackend(paymentId, 'mercadopago_checkout_pro'); // Passa paymentId
         }
-    } else if (location.pathname === '/pagamento/sucesso' && status === 'pending') {
+    } else if (status === 'pending') {
         toast.info('Seu pagamento está pendente. Aguardando confirmação.');
-    } else if (location.pathname === '/pagamento/sucesso' && status === 'rejected') {
+    } else if (status === 'rejected') {
         toast.error('Seu pagamento foi recusado. Por favor, tente novamente.');
         navigate('/checkout');
     }
-  }, [location.search, location.pathname, navigate, paymentStatus, sendOrderToBackend]);
+  }, [location.search, navigate, paymentStatus, sendOrderToBackend]);
 
 
   const handleCheckoutProPayment = async () => {
+    if (!isStoreOpen) {
+        toast.error('A loja está fechada no momento. Não é possível processar o pagamento.');
+        return;
+    }
+    
     if (!deliveryDetails || deliveryFee === null || !payerName.trim() || !payerEmail.trim()) {
         toast.error('Por favor, preencha todos os dados do pagador e de entrega.');
         return;
@@ -164,7 +173,7 @@ const Checkout = () => {
   };
 
   // Se o pagamento foi um sucesso (após retorno do MP)
-  if (paymentStatus === 'success' || location.pathname === '/pagamento/sucesso') {
+  if (paymentStatus === 'success') {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -209,7 +218,7 @@ const Checkout = () => {
   }
 
   const isPayerDetailsMissing = !payerName.trim() || !payerEmail.trim();
-  const isCheckoutButtonDisabled = items.length === 0 || isPayerDetailsMissing || isLoading;
+  const isCheckoutButtonDisabled = items.length === 0 || isPayerDetailsMissing || isLoading || !isStoreOpen;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -340,6 +349,13 @@ const Checkout = () => {
                 </div>
               </div>
 
+              {!isStoreOpen && (
+                <div className="flex items-center justify-center p-4 mb-4 bg-destructive/10 border border-destructive rounded-lg text-destructive font-medium">
+                  <Clock className="w-5 h-5 mr-2" />
+                  A loja está fechada no momento.
+                </div>
+              )}
+
               <Button
                 variant="hero"
                 size="lg"
@@ -347,8 +363,10 @@ const Checkout = () => {
                 onClick={handleCheckoutProPayment}
                 disabled={isCheckoutButtonDisabled}
               >
-                {isLoading ? (
+                {isStatusLoading || isLoading ? (
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                ) : isCheckoutButtonDisabled && !isStoreOpen ? (
+                  'Loja Fechada'
                 ) : (
                   'Finalizar Pedido'
                 )}

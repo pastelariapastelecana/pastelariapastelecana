@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
+import { StoreStatusProvider } from "@/contexts/StoreStatusContext"; // Importar o Provider
 import Index from "./pages/Index";
 import Cardapio from "./pages/Cardapio";
 import CoffeeBreak from "./pages/CoffeeBreak";
@@ -14,32 +15,44 @@ import Feedback from "./pages/Feedback";
 import Registration from "./pages/Registration";
 import NossaLoja from "./pages/NossaLoja";
 import NotFound from "./pages/NotFound";
+import StoreStatusAdmin from "./pages/admin/StoreStatusAdmin";
+import Login from "./pages/admin/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <CartProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/cardapio" element={<Cardapio />} />
-            <Route path="/coffee-break" element={<CoffeeBreak />} />
-            <Route path="/feedback" element={<Feedback />} />
-            <Route path="/contato" element={<Contato />} />
-            <Route path="/cadastro" element={<Registration />} />
-            <Route path="/nossa-loja" element={<NossaLoja />} />
-            <Route path="/carrinho" element={<Carrinho />} />
-            <Route path="/checkout" element={<Checkout />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </CartProvider>
+    <StoreStatusProvider> {/* Envolve o aplicativo com o provedor de status */}
+      <CartProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/cardapio" element={<Cardapio />} />
+              <Route path="/coffee-break" element={<CoffeeBreak />} />
+              <Route path="/feedback" element={<Feedback />} />
+              <Route path="/contato" element={<Contato />} />
+              <Route path="/cadastro" element={<Registration />} />
+              <Route path="/nossa-loja" element={<NossaLoja />} />
+              <Route path="/carrinho" element={<Carrinho />} />
+              <Route path="/checkout" element={<Checkout />} />
+              
+              {/* Rotas de Administração */}
+              <Route path="/admin/login" element={<Login />} />
+              <Route element={<ProtectedRoute redirectPath="/admin/login" />}>
+                <Route path="/admin/status" element={<StoreStatusAdmin />} />
+              </Route>
+
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CartProvider>
+    </StoreStatusProvider>
   </QueryClientProvider>
 );
 

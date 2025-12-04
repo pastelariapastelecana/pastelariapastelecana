@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, Loader2 } from 'lucide-react';
+import { useStoreStatus } from '@/contexts/StoreStatusContext'; // Importar useStoreStatus
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, Loader2, Clock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -16,6 +17,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const Carrinho = () => {
   const { items, updateQuantity, removeItem, totalPrice, clearCart } = useCart();
+  const { isStoreOpen, isLoading: isStatusLoading } = useStoreStatus(); // Usar status da loja
   const navigate = useNavigate();
 
   const [deliveryDetails, setDeliveryDetails] = useState({
@@ -115,7 +117,7 @@ const Carrinho = () => {
     });
   };
 
-  const isCheckoutButtonDisabled = items.length === 0 || isCalculatingDelivery || deliveryFee === null || !constructFullAddress(deliveryDetails);
+  const isCheckoutButtonDisabled = items.length === 0 || isCalculatingDelivery || deliveryFee === null || !constructFullAddress(deliveryDetails) || !isStoreOpen;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -287,6 +289,13 @@ const Carrinho = () => {
                         </div>
                       </div>
 
+                      {!isStoreOpen && (
+                        <div className="flex items-center justify-center p-4 mb-4 bg-destructive/10 border border-destructive rounded-lg text-destructive font-medium">
+                          <Clock className="w-5 h-5 mr-2" />
+                          A loja está fechada no momento.
+                        </div>
+                      )}
+
                       <div className="space-y-3">
                         <Button
                           variant="hero"
@@ -295,7 +304,15 @@ const Carrinho = () => {
                           onClick={() => navigate('/checkout', { state: { deliveryDetails, deliveryFee } })}
                           disabled={isCheckoutButtonDisabled}
                         >
-                          {isCheckoutButtonDisabled ? 'Preencha o endereço e calcule o frete' : 'Finalizar Pedido'}
+                          {isStatusLoading ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          ) : isCheckoutButtonDisabled && !isStoreOpen ? (
+                            'Loja Fechada'
+                          ) : isCheckoutButtonDisabled ? (
+                            'Preencha o endereço e calcule o frete'
+                          ) : (
+                            'Finalizar Pedido'
+                          )}
                         </Button>
                         <div className="flex gap-3">
                           <Link to="/cardapio" className="flex-1">
