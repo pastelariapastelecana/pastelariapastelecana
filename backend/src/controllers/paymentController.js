@@ -1,6 +1,19 @@
 // backend/src/controllers/paymentController.js
 const { createPixPayment, createCardPayment } = require('../services/mercadoPagoService');
 
+function extractErrorDetails(error) {
+    if (error.response && error.response.data) {
+        // Tenta extrair a mensagem de erro específica do Mercado Pago
+        const mpError = error.response.data;
+        if (mpError.message) return mpError.message;
+        if (mpError.cause && mpError.cause.length > 0) {
+            return mpError.cause.map(c => `${c.code}: ${c.description}`).join('; ');
+        }
+        return JSON.stringify(mpError);
+    }
+    return error.message;
+}
+
 async function processPixPayment(req, res) {
     try {
         const { amount, payerEmail, payerName, externalReference } = req.body;
@@ -24,8 +37,9 @@ async function processPixPayment(req, res) {
         }
 
     } catch (error) {
-        console.error('Erro ao processar pagamento PIX:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Erro ao processar pagamento PIX.', details: error.response ? error.response.data : error.message });
+        const details = extractErrorDetails(error);
+        console.error('Erro ao processar pagamento PIX:', details);
+        res.status(500).json({ error: 'Erro ao processar pagamento PIX.', details: details });
     }
 }
 
@@ -51,8 +65,9 @@ async function processCardPayment(req, res) {
         });
 
     } catch (error) {
-        console.error('Erro ao processar pagamento com Cartão:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Erro ao processar pagamento com Cartão.', details: error.response ? error.response.data : error.message });
+        const details = extractErrorDetails(error);
+        console.error('Erro ao processar pagamento com Cartão:', details);
+        res.status(500).json({ error: 'Erro ao processar pagamento com Cartão.', details: details });
     }
 }
 
