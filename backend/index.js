@@ -5,10 +5,10 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const deliveryRoutes = require('./src/routes/deliveryRoutes');
-const pixRoutes = require('./src/routes/pixRoutes');
-const cardPaymentRoutes = require('./src/routes/cardPaymentRoutes'); // Novo: Rotas de Cartão
+const pixRoutes = require('./src/routes/pixRoutes'); // Corrigido o caminho
+const cardPaymentRoutes = require('./src/routes/cardPaymentRoutes'); // Corrigido o caminho
 const orderRoutes = require('./src/routes/orderRoutes');
-const webhookRoutes = require('./src/routes/webhookRoutes');
+const webhookRoutes = require('./src/routes/webhookRoutes'); // Corrigido o caminho
 
 const app = express();
 const PORT = process.env.PORT || 3001;
