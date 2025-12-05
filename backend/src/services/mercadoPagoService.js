@@ -1,7 +1,15 @@
 // backend/src/services/mercadoPagoService.js
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 
-const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
+const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+if (!accessToken) {
+    console.error('ERRO CRÍTICO: MERCADOPAGO_ACCESS_TOKEN não está configurado no backend.');
+    // Lançar erro aqui pode quebrar o servidor na inicialização, mas é melhor para depuração.
+    // Vamos apenas logar e deixar o erro de inicialização do cliente MP acontecer se o token for undefined.
+}
+
+const client = new MercadoPagoConfig({ accessToken });
 
 /**
  * Cria um pagamento PIX usando o Checkout Transparente.
@@ -24,17 +32,22 @@ async function createPixPayment(amount, description, payerEmail, payerName) {
         },
     };
 
-    const result = await payment.create({ body });
-    
-    if (result && result.point_of_interaction && result.point_of_interaction.transaction_data) {
-        return {
-            id: result.id,
-            qrCodeImage: `data:image/png;base64,${result.point_of_interaction.transaction_data.qr_code_base64}`,
-            pixCopyPaste: result.point_of_interaction.transaction_data.qr_code,
-        };
-    } else {
-        console.error('Mercado Pago PIX response missing transaction_data:', result);
-        throw new Error('Dados do PIX QR Code não encontrados na resposta do Mercado Pago.');
+    try {
+        const result = await payment.create({ body });
+        
+        if (result && result.point_of_interaction && result.point_of_interaction.transaction_data) {
+            return {
+                id: result.id,
+                qrCodeImage: `data:image/png;base64,${result.point_of_interaction.transaction_data.qr_code_base64}`,
+                pixCopyPaste: result.point_of_interaction.transaction_data.qr_code,
+            };
+        } else {
+            console.error('Mercado Pago PIX response missing transaction_data:', result);
+            throw new Error('Dados do PIX QR Code não encontrados na resposta do Mercado Pago.');
+        }
+    } catch (error) {
+        console.error('Erro ao criar pagamento PIX no Mercado Pago:', error.response ? error.response.data : error.message);
+        throw error;
     }
 }
 
@@ -61,8 +74,13 @@ async function createCardPayment(amount, description, token, installments, payme
         },
     };
 
-    const result = await payment.create({ body });
-    return result;
+    try {
+        const result = await payment.create({ body });
+        return result;
+    } catch (error) {
+        console.error('Erro ao criar pagamento com cartão no Mercado Pago:', error.response ? error.response.data : error.message);
+        throw error;
+    }
 }
 
 /**
