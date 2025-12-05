@@ -5,10 +5,10 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const deliveryRoutes = require('./src/routes/deliveryRoutes');
-const pixRoutes = require('./src/routes/pixRoutes'); // Corrigido o caminho
-const cardPaymentRoutes = require('./src/routes/cardPaymentRoutes'); // Corrigido o caminho
+const pixRoutes = require('./src/routes/pixRoutes');
+const cardPaymentRoutes = require('./src/routes/cardPaymentRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
-const webhookRoutes = require('./src/routes/webhookRoutes'); // Corrigido o caminho
+const webhookRoutes = require('./src/routes/webhookRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,7 +20,7 @@ app.use(bodyParser.json()); // Analisa corpos de requisição JSON
 // Rotas
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api', pixRoutes);
-app.use('/api', cardPaymentRoutes); // Adiciona rotas de cartão
+app.use('/api', cardPaymentRoutes);
 app.use('/api', orderRoutes);
 app.use('/api/webhooks', webhookRoutes);
 console.log('Rotas de PIX, Cartão, pedido e webhooks carregadas em /api');
