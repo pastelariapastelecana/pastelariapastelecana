@@ -7,7 +7,9 @@ async function generatePix(req, res) {
             return res.status(400).json({ error: 'Valor, descrição, nome e e-mail do pagador são obrigatórios para gerar o PIX.' });
         }
         const pixData = await generatePixData(amount, description, payerEmail, payerName); // Passa para o serviço
-        res.json(pixData);
+        
+        // pixData agora inclui { id, qrCodeImage, pixCopyPaste }
+        res.json(pixData); 
     } catch (error) {
         console.error('Erro ao gerar dados PIX:', error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'Erro interno ao gerar dados PIX.', details: error.response ? error.response.data : error.message });
