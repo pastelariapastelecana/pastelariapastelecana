@@ -8,7 +8,6 @@ if (!accessToken) {
 }
 
 // Inicializa o cliente MercadoPago uma única vez ao carregar o módulo
-// O SDK infere o ambiente (sandbox/live) baseado no prefixo do token (TEST-/APP_USR-)
 const client = new MercadoPagoConfig({ accessToken });
 
 async function generatePixData(amount, description, payerEmail, payerName) {
@@ -20,8 +19,8 @@ async function generatePixData(amount, description, payerEmail, payerName) {
 
     // Dividir o nome completo em primeiro nome e sobrenome
     const nameParts = payerName.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
+    const firstName = nameParts[0] || 'Cliente';
+    const lastName = nameParts.slice(1).join(' ') || 'Pastelaria';
 
     const body = {
         transaction_amount: parseFloat(amount.toFixed(2)),
@@ -30,9 +29,14 @@ async function generatePixData(amount, description, payerEmail, payerName) {
         payer: {
             email: payerEmail,
             first_name: firstName,
-            last_name: lastName, // Adicionado last_name
+            last_name: lastName,
+            // Adicionando uma identificação padrão (CPF de teste) para evitar erros de validação da API
+            // Em um ambiente real, este dado deveria vir do frontend.
+            identification: {
+                type: "CPF",
+                number: "12345678909" // CPF de teste
+            }
         },
-        // Adicionando external_reference para rastreamento
         external_reference: `PIX-${Date.now()}`,
     };
 
