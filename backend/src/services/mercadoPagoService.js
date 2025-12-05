@@ -1,7 +1,13 @@
 // backend/src/services/mercadoPagoService.js
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
-const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
+const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+if (!accessToken) {
+    console.error('ERRO CRÍTICO: MERCADOPAGO_ACCESS_TOKEN não está configurado no arquivo .env do backend.');
+    throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined.');
+}
+
+const client = new MercadoPagoConfig({ accessToken });
 
 async function createPaymentPreference(items, payer, externalReference) {
     const preference = new Preference(client);
