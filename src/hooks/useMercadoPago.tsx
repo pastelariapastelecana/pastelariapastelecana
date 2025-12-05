@@ -1,41 +1,33 @@
 import { useState, useEffect } from 'react';
-import { initMercadoPago, MercadoPagoInstance } from '@mercadopago/sdk-js';
+import * as MP from '@mercadopago/sdk-js'; // Importa o módulo inteiro
 import { toast } from 'sonner';
 
-// A chave pública deve ser lida do .env do frontend
 const PUBLIC_KEY = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
 
-export function useMercadoPago() {
-  const [mp, setMp] = useState<MercadoPagoInstance | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const useMercadoPago = () => {
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (!PUBLIC_KEY) {
-      console.error('VITE_MERCADOPAGO_PUBLIC_KEY não está configurada no frontend.');
-      toast.error('Erro de configuração: Chave pública do Mercado Pago ausente.');
-      setIsLoading(false);
+      console.error('VITE_MERCADOPAGO_PUBLIC_KEY não está configurada no .env do frontend.');
+      toast.error('Chave pública do Mercado Pago ausente.');
       return;
     }
 
     try {
-      // Inicializa o SDK
-      initMercadoPago(PUBLIC_KEY, { locale: 'pt-BR' });
-      
-      // O SDK é carregado globalmente, mas podemos obter a instância
-      // A tipagem do SDK é um pouco complexa, mas o objeto global 'MercadoPago' deve estar disponível.
-      // Para simplificar, vamos apenas verificar se a inicialização ocorreu.
-      // Em um ambiente React, é comum usar o objeto global após a inicialização.
-      // Vamos forçar a tipagem para evitar erros de compilação, assumindo que o initMercadoPago funciona.
-      const mpInstance = (window as any).MercadoPago as MercadoPagoInstance;
-      setMp(mpInstance);
-      
+      // Acessa a função initMercadoPago a partir do módulo importado
+      if (MP.initMercadoPago) {
+        MP.initMercadoPago(PUBLIC_KEY, { locale: 'pt-BR' });
+        setIsInitialized(true);
+      } else {
+        console.error('initMercadoPago não encontrado no módulo MP.');
+        toast.error('Falha ao carregar o sistema de pagamento (SDK).');
+      }
     } catch (error) {
       console.error('Erro ao inicializar Mercado Pago SDK:', error);
       toast.error('Falha ao carregar o sistema de pagamento.');
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
-  return { mp, isLoading };
-}
+  return { isInitialized };
+};
