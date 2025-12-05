@@ -8,6 +8,7 @@ if (!accessToken) {
 }
 
 // Inicializa o cliente MercadoPago uma única vez ao carregar o módulo
+// O SDK infere o ambiente (sandbox/live) baseado no prefixo do token (TEST-/APP_USR-)
 const client = new MercadoPagoConfig({ accessToken });
 
 async function generatePixData(amount, description, payerEmail, payerName) {
@@ -31,6 +32,8 @@ async function generatePixData(amount, description, payerEmail, payerName) {
             first_name: firstName,
             last_name: lastName, // Adicionado last_name
         },
+        // Adicionando external_reference para rastreamento
+        external_reference: `PIX-${Date.now()}`,
     };
 
     try {
