@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import * as MP from '@mercadopago/sdk-js'; // Importa o módulo inteiro
 import { toast } from 'sonner';
 
 const PUBLIC_KEY = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
@@ -14,20 +13,31 @@ export const useMercadoPago = () => {
       return;
     }
 
-    try {
-      // Acessa a função initMercadoPago a partir do módulo importado
-      if (MP.initMercadoPago) {
-        MP.initMercadoPago(PUBLIC_KEY, { locale: 'pt-BR' });
-        setIsInitialized(true);
-      } else {
-        console.error('initMercadoPago não encontrado no módulo MP.');
-        toast.error('Falha ao carregar o sistema de pagamento (SDK).');
+    const initializeMP = async () => {
+      try {
+        // Importação dinâmica para garantir que o módulo seja carregado corretamente
+        const mpModule = await import('@mercadopago/sdk-js');
+        
+        // O SDK pode estar em 'default' ou diretamente no módulo, dependendo da configuração do bundler
+        const initMercadoPago = mpModule.initMercadoPago || (mpModule.default as any)?.initMercadoPago;
+
+        if (initMercadoPago) {
+          initMercadoPago(PUBLIC_KEY, { locale: 'pt-BR' });
+          setIsInitialized(true);
+        } else {
+          console.error('initMercadoPago não encontrado no módulo importado.');
+          toast.error('Falha crítica ao carregar o sistema de pagamento (SDK).');
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar Mercado Pago SDK:', error);
+        toast.error('Falha ao carregar o sistema de pagamento.');
       }
-    } catch (error) {
-      console.error('Erro ao inicializar Mercado Pago SDK:', error);
-      toast.error('Falha ao carregar o sistema de pagamento.');
+    };
+
+    if (!isInitialized) {
+      initializeMP();
     }
-  }, []);
+  }, [isInitialized]);
 
   return { isInitialized };
 };
