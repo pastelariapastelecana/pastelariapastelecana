@@ -5,10 +5,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const deliveryRoutes = require('./src/routes/deliveryRoutes');
-const pixRoutes = require('./src/routes/pixRoutes');
-const cardPaymentRoutes = require('./src/routes/cardPaymentRoutes');
+const paymentRoutes = require('./src/routes/paymentRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
-const webhookRoutes = require('./src/routes/webhookRoutes');
+const webhookRoutes = require('./src/routes/webhookRoutes'); // Importar as novas rotas de webhook
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,11 +18,13 @@ app.use(bodyParser.json()); // Analisa corpos de requisição JSON
 
 // Rotas
 app.use('/api/delivery', deliveryRoutes);
-app.use('/api', pixRoutes);
-app.use('/api', cardPaymentRoutes);
+console.log('Rotas de delivery carregadas em /api/delivery'); // Log de depuração
+app.use('/api', paymentRoutes);
+console.log('Rotas de pagamento carregadas em /api'); // Log de depuração
 app.use('/api', orderRoutes);
-app.use('/api/webhooks', webhookRoutes);
-console.log('Rotas de PIX, Cartão, pedido e webhooks carregadas em /api');
+console.log('Rotas de pedido carregadas em /api'); // Log de depuração
+app.use('/api/webhooks', webhookRoutes); // Adicionar as novas rotas de webhook
+console.log('Rotas de webhooks carregadas em /api/webhooks'); // Log de depuração
 
 // Rota básica para testar se o servidor está funcionando
 app.get('/', (req, res) => {
