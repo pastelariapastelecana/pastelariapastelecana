@@ -9,20 +9,20 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useStoreStatus } from '@/contexts/StoreStatusContext';
-import { useMercadoPago } from '@/contexts/MercadoPagoContext';
+import { useMercadoPago } from '@/contexts/MercadoPagoContext'; // Importar o novo hook
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, CreditCard, Loader2, CheckCircle2, User, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { generateUUID } from '@/lib/utils'; // Importar a função de UUID
-import { supabase } from '@/integrations/supabase/client'; // Importar o cliente Supabase
+import { generateUUID } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { isStoreOpen, isLoading: isStatusLoading } = useStoreStatus();
-  const { mpInstance, isMpInitialized } = useMercadoPago();
+  const { mpInstance, isMpInitialized } = useMercadoPago(); // Usar o novo hook
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,7 +43,7 @@ const Checkout = () => {
 
   const [payerName, setPayerName] = useState('');
   const [payerEmail, setPayerEmail] = useState('');
-  const [orderId, setOrderId] = useState<string | null>(null); // Novo estado para Order ID
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const totalWithDelivery = totalPrice + (deliveryFee || 0);
 
@@ -96,13 +96,13 @@ const Checkout = () => {
         }
         
         // Se o pagamento já foi aprovado (retorno do MP), atualiza o status
+        // O webhook também fará isso, mas esta é uma confirmação rápida para o usuário.
         if (paymentId && paymentMethodUsed === 'mercadopago_approved') {
             await supabase
                 .from('orders')
                 .update({ status: 'approved' })
                 .eq('external_order_id', externalOrderId);
             
-            // Se o pagamento já está aprovado, o frontend pode assumir sucesso
             setPaymentStatus('success');
             clearCart();
         }
@@ -119,13 +119,12 @@ const Checkout = () => {
     const query = new URLSearchParams(location.search);
     const status = query.get('status');
     const paymentId = query.get('payment_id');
-    const externalReference = query.get('external_reference'); // Captura o external_reference
+    const externalReference = query.get('external_reference');
 
     if (status === 'approved' && paymentId && externalReference) {
         if (paymentStatus !== 'success' && paymentStatus !== 'processing') {
             setPaymentStatus('processing');
-            // Se o pagamento foi aprovado, armazenamos o pedido no Supabase e limpamos o carrinho.
-            // O e-mail será enviado pelo webhook.
+            // Armazenamos o pedido no Supabase e limpamos o carrinho.
             storeOrderDetails(paymentId, 'mercadopago_approved', externalReference);
         }
     } else if (status === 'pending') {
@@ -179,7 +178,7 @@ const Checkout = () => {
         
         // 1. Gerar Order ID (External Reference)
         const externalReference = generateUUID();
-        setOrderId(externalReference); // Armazena no estado local
+        setOrderId(externalReference);
 
         // 2. Criar a preferência de pagamento no backend
         const response = await axios.post(`${BACKEND_URL}/api/create-payment`, {
@@ -188,7 +187,7 @@ const Checkout = () => {
                 name: payerName,
                 email: payerEmail,
             },
-            externalReference: externalReference, // Envia a referência externa
+            externalReference: externalReference,
         });
 
         const preferenceId = response.data?.id;
@@ -198,7 +197,6 @@ const Checkout = () => {
         }
         
         // 3. Armazenar o pedido no Supabase com status 'pending_payment'
-        // Usamos '0' como paymentId temporário, pois o MP ainda não gerou um.
         await storeOrderDetails('0', 'mercadopago_checkout_pro', externalReference);
 
 
