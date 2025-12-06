@@ -3,9 +3,8 @@ const { createPaymentPreference } = require('../services/mercadoPagoService');
 
 async function processPayment(req, res) {
     try {
-        // Usar externalReference que é o que o frontend envia
-        const { items, payer, externalReference } = req.body; 
-        const preference = await createPaymentPreference(items, payer, externalReference);
+        const { items, payer, externalReference } = req.body; // Recebe externalReference
+        const preference = await createPaymentPreference(items, payer, externalReference); // Passa externalReference
         res.json({ id: preference.id, init_point: preference.init_point });
     } catch (error) {
         console.error('Erro ao criar preferência de pagamento:', error.response ? error.response.data : error.message);
