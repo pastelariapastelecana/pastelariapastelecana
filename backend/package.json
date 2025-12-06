@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "@mercadopago/sdk-js": "^0.0.3",
+    "@supabase/supabase-js": "^2.86.0",
     "axios": "^1.12.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
