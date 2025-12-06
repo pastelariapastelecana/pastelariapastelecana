@@ -9,20 +9,17 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useStoreStatus } from '@/contexts/StoreStatusContext';
-import { useMercadoPago } from '@/contexts/MercadoPagoContext'; // Importar o novo hook
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, CreditCard, Loader2, CheckCircle2, User, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { generateUUID } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { generateUUID } from '@/lib/utils'; // Importar utilitário para gerar ID
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const { isStoreOpen, isLoading: isStatusLoading } = useStoreStatus();
-  const { mpInstance, isMpInitialized } = useMercadoPago(); // Usar o novo hook
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,19 +40,17 @@ const Checkout = () => {
 
   const [payerName, setPayerName] = useState('');
   const [payerEmail, setPayerEmail] = useState('');
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null); // Estado para armazenar o ID do pedido (external_reference)
 
   const totalWithDelivery = totalPrice + (deliveryFee || 0);
 
   // Redireciona se o carrinho estiver vazio ou detalhes de entrega ausentes
   useEffect(() => {
     if (items.length === 0 || !deliveryDetails || deliveryFee === undefined || deliveryFee === null) {
-      if (paymentStatus !== 'success') {
-        toast.info('Por favor, revise seu carrinho e endereço de entrega.');
-        navigate('/carrinho');
-      }
+      toast.info('Por favor, revise seu carrinho e endereço de entrega.');
+      navigate('/carrinho');
     }
-  }, [items, navigate, deliveryDetails, deliveryFee, paymentStatus]);
+  }, [items, navigate, deliveryDetails, deliveryFee]);
 
   const constructFullAddress = (details?: typeof deliveryDetails) => {
     if (!details) return '';
@@ -63,69 +58,51 @@ const Checkout = () => {
     return `${address}, ${number}, ${neighborhood}, ${city} - ${zipCode}`;
   };
 
-  // Função para armazenar os detalhes do pedido no Supabase
-  const storeOrderDetails = useCallback(async (paymentId: string, paymentMethodUsed: string, externalOrderId: string) => {
+  // Função para enviar os detalhes do pedido para o backend
+  const sendOrderToBackend = useCallback(async (paymentId: string, orderId: string, paymentMethodUsed: string) => {
     if (!deliveryDetails || deliveryFee === null) {
         toast.error('Detalhes de entrega ou taxa de frete ausentes. Por favor, retorne ao carrinho.');
         return;
     }
 
     const orderDetails = {
-        external_order_id: externalOrderId, // Usado como external_reference no MP
-        payment_id: paymentId,
-        status: 'pending_payment', // Status inicial
         items: items,
-        delivery_details: deliveryDetails,
-        delivery_fee: deliveryFee,
-        total_price: totalPrice,
-        total_with_delivery: totalWithDelivery,
-        payment_method: paymentMethodUsed,
-        payer_name: payerName,
-        payer_email: payerEmail,
-        order_date: new Date().toISOString(),
+        deliveryDetails: deliveryDetails,
+        deliveryFee: deliveryFee,
+        totalPrice: totalPrice,
+        totalWithDelivery: totalWithDelivery,
+        paymentMethod: paymentMethodUsed,
+        payerName: payerName,
+        payerEmail: payerEmail,
+        paymentId: paymentId,
+        orderId: orderId, // Passa o ID do pedido (external_reference)
+        orderDate: new Date().toISOString(),
     };
 
     try {
-        const { error } = await supabase
-            .from('orders')
-            .insert([orderDetails]);
-
-        if (error) {
-            console.error('Erro ao armazenar pedido no Supabase:', error);
-            throw new Error('Falha ao armazenar pedido.');
-        }
-        
-        // Se o pagamento já foi aprovado (retorno do MP), atualiza o status
-        // O webhook também fará isso, mas esta é uma confirmação rápida para o usuário.
-        if (paymentId && paymentMethodUsed === 'mercadopago_approved') {
-            await supabase
-                .from('orders')
-                .update({ status: 'approved' })
-                .eq('external_order_id', externalOrderId);
-            
-            setPaymentStatus('success');
-            clearCart();
-        }
-
+        await axios.post(`${BACKEND_URL}/api/confirm-order`, orderDetails);
+        toast.success('Pedido confirmado e notificação enviada!');
+        setPaymentStatus('success');
+        clearCart();
     } catch (error) {
-        console.error('Erro ao armazenar pedido no Supabase:', error);
-        toast.error('Ocorreu um erro ao preparar seu pedido. Tente novamente.');
+        console.error('Erro ao confirmar pedido no backend:', error);
+        toast.error('Ocorreu um erro ao finalizar seu pedido. Por favor, entre em contato.');
         setPaymentStatus('failed');
     }
   }, [items, deliveryDetails, deliveryFee, totalPrice, totalWithDelivery, payerName, payerEmail, clearCart]);
 
-  // Efeito para lidar com o retorno do Mercado Pago (se for redirecionado)
+  // Efeito para lidar com o retorno do Mercado Pago na página de sucesso
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const status = query.get('status');
     const paymentId = query.get('payment_id');
-    const externalReference = query.get('external_reference');
+    const externalReference = query.get('external_reference'); // Captura o external_reference
 
     if (status === 'approved' && paymentId && externalReference) {
         if (paymentStatus !== 'success' && paymentStatus !== 'processing') {
             setPaymentStatus('processing');
-            // Armazenamos o pedido no Supabase e limpamos o carrinho.
-            storeOrderDetails(paymentId, 'mercadopago_approved', externalReference);
+            // Usa o externalReference capturado da URL
+            sendOrderToBackend(paymentId, externalReference, 'mercadopago_checkout_pro');
         }
     } else if (status === 'pending') {
         toast.info('Seu pagamento está pendente. Aguardando confirmação.');
@@ -133,7 +110,7 @@ const Checkout = () => {
         toast.error('Seu pagamento foi recusado. Por favor, tente novamente.');
         navigate('/checkout');
     }
-  }, [location.search, navigate, paymentStatus, storeOrderDetails]);
+  }, [location.search, navigate, paymentStatus, sendOrderToBackend]);
 
 
   const handleCheckoutProPayment = async () => {
@@ -144,11 +121,6 @@ const Checkout = () => {
     
     if (!deliveryDetails || deliveryFee === null || !payerName.trim() || !payerEmail.trim()) {
         toast.error('Por favor, preencha todos os dados do pagador e de entrega.');
-        return;
-    }
-
-    if (!mpInstance) {
-        toast.error('O sistema de pagamento ainda não foi carregado. Tente novamente em instantes.');
         return;
     }
 
@@ -165,6 +137,7 @@ const Checkout = () => {
             description: item.description || item.name,
         }));
 
+        // Adiciona a taxa de entrega como um item se ela existir
         if (deliveryFee && deliveryFee > 0) {
             orderItemsForMP.push({
                 title: 'Taxa de Entrega',
@@ -176,51 +149,35 @@ const Checkout = () => {
             });
         }
         
-        // 1. Gerar Order ID (External Reference)
+        // Geração do external_reference (ID do pedido interno)
         const externalReference = generateUUID();
-        setOrderId(externalReference);
+        setOrderId(externalReference); // Armazena o ID gerado
 
-        // 2. Criar a preferência de pagamento no backend
         const response = await axios.post(`${BACKEND_URL}/api/create-payment`, {
             items: orderItemsForMP,
             payer: {
                 name: payerName,
                 email: payerEmail,
             },
-            externalReference: externalReference,
+            externalReference: externalReference, // Envia a referência externa
         });
 
-        const preferenceId = response.data?.id;
-
-        if (!preferenceId) {
-            throw new Error('ID da preferência de pagamento não recebido.');
+        if (response.data && response.data.init_point) {
+            // Redireciona para o Mercado Pago
+            window.location.href = response.data.init_point; 
+        } else {
+            throw new Error('URL de pagamento do Mercado Pago não recebida.');
         }
-        
-        // 3. Armazenar o pedido no Supabase com status 'pending_payment'
-        await storeOrderDetails('0', 'mercadopago_checkout_pro', externalReference);
-
-
-        // 4. Inicializar e abrir o modal de checkout
-        const checkout = mpInstance.checkout({
-            preference: { id: preferenceId },
-            render: {
-                container: 'body',
-                label: 'Pagar com Mercado Pago',
-            },
-            theme: {
-                elementsColor: '#FF7700',
-            }
-        });
-
-        checkout.open();
-
-        setIsLoading(false);
-
     } catch (error) {
-        console.error('Erro ao iniciar pagamento com Mercado Pago Checkout Pro Modal:', error);
+        console.error('Erro ao iniciar pagamento com Mercado Pago Checkout Pro:', error);
         toast.error('Ocorreu um erro ao iniciar o pagamento. Tente novamente.');
         setPaymentStatus('failed');
-        setIsLoading(false);
+    } finally {
+        // Não definimos isLoading como false aqui, pois o usuário será redirecionado.
+        // Se houver um erro, ele será definido como false.
+        if (paymentStatus === 'failed') {
+            setIsLoading(false);
+        }
     }
   };
 
@@ -270,7 +227,7 @@ const Checkout = () => {
   }
 
   const isPayerDetailsMissing = !payerName.trim() || !payerEmail.trim();
-  const isCheckoutButtonDisabled = items.length === 0 || isPayerDetailsMissing || isLoading || !isStoreOpen || !isMpInitialized;
+  const isCheckoutButtonDisabled = items.length === 0 || isPayerDetailsMissing || isLoading || !isStoreOpen;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -405,13 +362,6 @@ const Checkout = () => {
                 <div className="flex items-center justify-center p-4 mb-4 bg-destructive/10 border border-destructive rounded-lg text-destructive font-medium">
                   <Clock className="w-5 h-5 mr-2" />
                   A loja está fechada no momento.
-                </div>
-              )}
-              
-              {!isMpInitialized && (
-                <div className="flex items-center justify-center p-4 mb-4 bg-yellow-100 border border-yellow-500 rounded-lg text-yellow-700 font-medium">
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Carregando sistema de pagamento...
                 </div>
               )}
 
